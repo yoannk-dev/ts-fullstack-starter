@@ -16,6 +16,9 @@ build/
 
 # Database
 *.db
+
+# Prisma generated client
+generated/
 *.db-shm
 *.db-wal
 

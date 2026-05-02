@@ -7,6 +7,7 @@ export const postRouter = router({
   findAll: publicProcedure.query(async () => {
     return prisma.post.findMany({
       orderBy: { created_at: "desc" },
+      include: { author: true },
     });
   }),
 
