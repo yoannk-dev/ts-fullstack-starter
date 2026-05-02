@@ -16,6 +16,7 @@ export const postRouter = router({
     .query(async ({ input }) => {
       return prisma.post.findUnique({
         where: { id: input.id },
+        include: { author: true },
       });
     }),
 
@@ -28,7 +29,7 @@ export const postRouter = router({
     }),
 
   update: publicProcedure
-    .input(z.object({ id: z.string(), data: UpdatePostSchema }))
+    .input(z.object({ id: z.number().int(), data: UpdatePostSchema }))
     .mutation(async ({ input }) => {
       return prisma.post.update({
         where: { id: input.id },
