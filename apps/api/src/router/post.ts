@@ -11,7 +11,7 @@ export const postRouter = router({
   }),
 
   findById: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.number().int() }))
     .query(async ({ input }) => {
       return prisma.post.findUnique({
         where: { id: input.id },
@@ -36,7 +36,7 @@ export const postRouter = router({
     }),
 
   delete: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       return prisma.post.delete({
         where: { id: input.id },

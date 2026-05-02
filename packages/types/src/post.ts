@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const PostSchema = z.object({
-  id: z.string().cuid2(),
+  id: z.number().int().positive(),
   title: z.string().min(1).max(255),
   url: z.string().url(),
   created_at: z.date(),
