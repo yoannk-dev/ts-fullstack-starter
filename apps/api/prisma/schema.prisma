@@ -13,13 +13,17 @@ model Post {
   url        String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  author     User    @relation(fields: [authorId], references: [id])
+  author     User     @relation(fields: [authorId], references: [id])
   authorId   Int
+
+  @@map("posts")
 }
 
 model User {
-  id         Int     @id @default(autoincrement())
-  email      String  @unique
-  name       String?
-  posts      Post[]
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  posts Post[]
+
+  @@map("users")
 }
