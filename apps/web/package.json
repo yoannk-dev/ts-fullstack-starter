@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@repo/api": "workspace:*",
     "@repo/types": "workspace:*",
     "@tanstack/react-query": "^5.100.8",
     "@trpc/client": "^11.16.0",
@@ -21,7 +22,7 @@
     "next": "^16.2.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-hook-form": "^7.74.0",
+    "react-hook-form": "^7.75.0",
     "zod": "^3.24.2",
     "zustand": "^5.0.3"
   },

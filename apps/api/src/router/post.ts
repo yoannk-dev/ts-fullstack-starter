@@ -11,22 +11,18 @@ export const postRouter = router({
     });
   }),
 
-  findById: publicProcedure
-    .input(z.object({ id: z.number().int() }))
-    .query(async ({ input }) => {
-      return prisma.post.findUnique({
-        where: { id: input.id },
-        include: { author: true },
-      });
-    }),
+  findById: publicProcedure.input(z.object({ id: z.number().int() })).query(async ({ input }) => {
+    return prisma.post.findUnique({
+      where: { id: input.id },
+      include: { author: true },
+    });
+  }),
 
-  create: publicProcedure
-    .input(CreatePostSchema)
-    .mutation(async ({ input }) => {
-      return prisma.post.create({
-        data: input,
-      });
-    }),
+  create: publicProcedure.input(CreatePostSchema).mutation(async ({ input }) => {
+    return prisma.post.create({
+      data: input,
+    });
+  }),
 
   update: publicProcedure
     .input(z.object({ id: z.number().int(), data: UpdatePostSchema }))
@@ -37,11 +33,9 @@ export const postRouter = router({
       });
     }),
 
-  delete: publicProcedure
-    .input(z.object({ id: z.number().int() }))
-    .mutation(async ({ input }) => {
-      return prisma.post.delete({
-        where: { id: input.id },
-      });
-    }),
+  delete: publicProcedure.input(z.object({ id: z.number().int() })).mutation(async ({ input }) => {
+    return prisma.post.delete({
+      where: { id: input.id },
+    });
+  }),
 });

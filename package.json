@@ -6,17 +6,19 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "type": "turbo run type-",
+    "type": "turbo run type",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.4",
+    "@eslint/js": "^9.39.4",
     "eslint": "^9.25.1",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "prettier": "^3.5.3",
     "turbo": "^2.9.7",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.59.1"
   },
   "engines": {
     "node": ">=20.0.0",

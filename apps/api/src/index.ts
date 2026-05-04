@@ -6,7 +6,7 @@ import { createContext } from "./trpc.js";
 import { prisma } from "./db.js";
 
 const app = express();
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.PORT ?? "3000";
 
 app.use(cors());
 app.use(express.json());
@@ -24,7 +24,9 @@ const server = app.listen(PORT, () => {
 });
 
 const shutdown = () => {
-  server.close(() => prisma.$disconnect().then(() => process.exit(0)));
+  server.close(() => {
+    void prisma.$disconnect().then(() => process.exit(0));
+  });
 };
 
 process.on("SIGTERM", shutdown);

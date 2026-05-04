@@ -8,29 +8,20 @@ import type { AppRouter } from "@repo/api/router";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
-function makeQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000,
-      },
-    },
+const makeQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { staleTime: 60 * 1000 } },
   });
-}
 
 let browserQueryClient: QueryClient | undefined;
 
-function getQueryClient() {
-  if (typeof window === "undefined") {
-    return makeQueryClient();
-  }
-  if (!browserQueryClient) {
-    browserQueryClient = makeQueryClient();
-  }
+const getQueryClient = () => {
+  if (typeof window === "undefined") return makeQueryClient();
+  browserQueryClient ??= makeQueryClient();
   return browserQueryClient;
-}
+};
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export const Providers = ({ children }: { children: React.ReactNode }) => {
   const queryClient = getQueryClient();
   const [trpcClient] = useState(() =>
     createTRPCClient<AppRouter>({
@@ -44,9 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </TRPCProvider>
   );
-}
+};

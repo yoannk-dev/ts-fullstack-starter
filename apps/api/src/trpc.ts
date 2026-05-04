@@ -6,13 +6,10 @@ export type Context = {
   res: Response;
 };
 
-export const createContext = ({
+export const createContext = ({ req, res }: { req: Request; res: Response }): Context => ({
   req,
   res,
-}: {
-  req: Request;
-  res: Response;
-}): Context => ({ req, res });
+});
 
 const t = initTRPC.context<Context>().create();
 

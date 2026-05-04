@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UserSchema } from "./user.js";
+import { UserSchema } from "./user";
 
 export const PostSchema = z.object({
   id: z.number().int().positive(),

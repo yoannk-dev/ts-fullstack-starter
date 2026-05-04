@@ -9,6 +9,7 @@ export default tseslint.config(
       "**/.next/**",
       "**/build/**",
       "**/.turbo/**",
+      "**/postcss.config.mjs",
     ],
   },
   js.configs.recommended,
@@ -25,12 +26,9 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
-        { prefer: "type-imports" },
-      ],
+      "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-floating-promises": "error",
     },
-  }
+  },
 );

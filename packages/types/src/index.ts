@@ -1,2 +1,2 @@
-export * from "./post.js";
-export * from "./user.js";
+export * from "./post";
+export * from "./user";
