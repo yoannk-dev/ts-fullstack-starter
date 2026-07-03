@@ -31,5 +31,5 @@ Next.js frontend consuming the tRPC API, with a strongly-typed data layer.
 └────────────┬────────────────┘
              │  HTTP (tRPC batch)
              ▼
-       apps/api  :3000
+       apps/api  :3001
 ```
