@@ -26,9 +26,6 @@
   },
   "packageManager": "pnpm@10.10.0",
   "pnpm": {
-    "overrides": {
-      "@trpc/server": "11.17.0"
-    },
     "onlyBuiltDependencies": ["nestjs-trpc"]
   }
 }
