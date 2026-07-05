@@ -18,6 +18,15 @@ HTTP server exposing a type-safe API — both REST and tRPC — backed by a SQLi
 
 **[@nestjs/swagger](https://docs.nestjs.com/openapi/introduction)** — Generates OpenAPI docs for the REST endpoints, served at `/api/docs`. Protected routes are documented with `@ApiSecurity('x-api-key')`.
 
+## Why both REST and tRPC?
+
+This is a deliberate demonstration of two exposure patterns side by side, not accidental duplication:
+
+- **tRPC** is the *internal* API — the only thing `apps/web` talks to. It's a trusted, first-party client, so procedures aren't guarded and there's no Swagger doc; type-safety comes from importing `AppRouter` directly.
+- **REST** is modeled as the *external/third-party* surface — untrusted callers without a TypeScript client, hence the Swagger docs at `/api/docs` and the `ApiKeyGuard` on mutations.
+
+That's why REST mutations require `x-api-key` but tRPC mutations don't — it's an intentional trust boundary, not an oversight. Both delegate to the same `PostService` so business logic isn't duplicated, only the transport/validation/doc/auth layer differs.
+
 ## Architecture
 
 REST and tRPC are two parallel entry points into the same application — they share `PostService` (which owns all Prisma queries) rather than duplicating query logic:
