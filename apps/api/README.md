@@ -1,37 +1,67 @@
 # @repo/api
 
-HTTP server exposing a type-safe API, backed by a SQLite database.
+HTTP server exposing a type-safe API — both REST and tRPC — backed by a SQLite database.
 
 ## Stack
 
-**[Express](https://expressjs.com/)** — Minimal HTTP server used as the transport layer. It handles the request lifecycle, CORS, and JSON parsing. tRPC is mounted as a middleware on `/trpc`, keeping the server setup lightweight and explicit.
+**[NestJS](https://nestjs.com/)** — Application framework providing modules, dependency injection, guards, interceptors, and middleware. Runs on the `@nestjs/platform-express` HTTP adapter. REST controllers and the tRPC layer both live inside the same Nest DI container and share the same services.
 
-**[tRPC](https://trpc.io/)** — Replaces a traditional REST or GraphQL API with end-to-end TypeScript procedures. The router defines strongly-typed queries and mutations that are consumed directly by the frontend with zero code generation. The shared `AppRouter` type is the contract between client and server.
+**[nestjs-trpc](https://nestjs-trpc.io/)** — Integrates tRPC into NestJS with native decorators (`@Router`, `@Query`, `@Mutation`, `@Input`). tRPC router classes are ordinary Nest providers — they can constructor-inject `PrismaService`/`PostService` like any other class. The tRPC handler is auto-mounted on `/trpc` on the same Express instance NestJS uses for REST.
+
+**[tRPC](https://trpc.io/)** — End-to-end TypeScript procedures for `apps/web`. The shared `AppRouter` type (exported from `src/router/index.ts`, re-exporting a generated type file) is the contract between client and server — zero runtime code generation involved.
 
 **[Prisma](https://www.prisma.io/)** — ORM used to model the database schema and interact with SQLite. The schema (`prisma/schema.prisma`) is the single source of truth: it drives both the migrations and the generated TypeScript client. See [`prisma/README.md`](./prisma/README.md) for migration workflows.
 
-**[Zod](https://zod.dev/)** — Runtime validation library used to define and enforce input schemas for tRPC procedures. Schemas are shared across the monorepo via `@repo/types`, ensuring the frontend and backend validate data against the same rules.
+**[Zod](https://zod.dev/)** — Runtime validation for tRPC procedure inputs/outputs. Schemas are shared across the monorepo via `@repo/types`, so the frontend and backend validate against the same rules.
+
+**[class-validator](https://github.com/typestack/class-validator) / [class-transformer](https://github.com/typestack/class-transformer)** — Validate and transform the DTOs used by the REST controllers (`@IsString`, `@IsUrl`, etc.), enforced globally via a `ValidationPipe` in `main.ts`.
+
+**[@nestjs/swagger](https://docs.nestjs.com/openapi/introduction)** — Generates OpenAPI docs for the REST endpoints, served at `/api/docs`. Protected routes are documented with `@ApiSecurity('x-api-key')`.
+
+## Why both REST and tRPC?
+
+This is a deliberate demonstration of two exposure patterns side by side, not accidental duplication:
+
+- **tRPC** is the *internal* API — the only thing `apps/web` talks to. It's a trusted, first-party client, so procedures aren't guarded and there's no Swagger doc; type-safety comes from importing `AppRouter` directly.
+- **REST** is modeled as the *external/third-party* surface — untrusted callers without a TypeScript client, hence the Swagger docs at `/api/docs` and the `ApiKeyGuard` on mutations.
+
+That's why REST mutations require `x-api-key` but tRPC mutations don't — it's an intentional trust boundary, not an oversight. Both delegate to the same `PostService` so business logic isn't duplicated, only the transport/validation/doc/auth layer differs.
 
 ## Architecture
+
+REST and tRPC are two parallel entry points into the same application — they share `PostService` (which owns all Prisma queries) rather than duplicating query logic:
 
 ```
 Frontend (apps/web)
        │
-       │  tRPC client  (AppRouter type)
+       │  tRPC client (AppRouter type)
        ▼
-┌─────────────────────────────┐
-│           Express           │  HTTP server — CORS, JSON
-│  ┌──────────────────────┐   │
-│  │        tRPC          │   │  Type-safe procedures
-│  │  ┌────────────────┐  │   │
-│  │  │   Zod schemas  │  │   │  Input validation (@repo/types)
-│  │  └────────────────┘  │   │
-│  └──────────────────────┘   │
-└────────────┬────────────────┘
-             │
-             ▼
-┌─────────────────────────────┐
-│           Prisma            │  ORM + migrations
-│         SQLite DB           │  prisma/dev.db
-└─────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│                   NestJS                       │
+│  ┌───────────────┐        ┌──────────────────┐ │
+│  │ PostController │        │    PostRouter     │ │
+│  │  (REST, DTOs,  │        │ (tRPC, Zod via    │ │
+│  │  class-        │        │  @repo/types,     │ │
+│  │  validator)    │        │  nestjs-trpc)      │ │
+│  └───────┬────────┘        └─────────┬─────────┘ │
+│          └──────────┬───────────────┘            │
+│                 ┌────▼─────┐                      │
+│                 │PostService│                      │
+│                 └────┬─────┘                      │
+│  common/: ApiKeyGuard (REST mutations),           │
+│  LoggerMiddleware (REST only), TransformInterceptor│
+│  (wraps REST responses; tRPC responses untouched)  │
+└──────────────────────┬──────────────────────────┘
+                        ▼
+              ┌───────────────────┐
+              │      Prisma        │  ORM + migrations
+              │     SQLite DB       │  prisma/dev.db
+              └───────────────────┘
 ```
+
+REST: `GET/POST /posts`, `GET/PATCH/DELETE /posts/:id`, docs at `/api/docs`.
+tRPC: `post.findAll`, `post.findById`, `post.create`, `post.update`, `post.delete`, mounted at `/trpc`.
+
+## Running
+
+`apps/api` runs via `node --import @swc-node/register/esm-register src/main.ts` (see `dev`/`start` scripts) rather than the standard `nest build` + `node dist/main.js` pipeline. This is required because `@repo/types` (a workspace dependency, used at runtime for Zod validation) ships as raw TypeScript with no build step, and because SWC (unlike esbuild/`tsx`) correctly emits the decorator metadata NestJS's dependency injection depends on. `nest build` still runs as part of the `build` script, but only as a type-check + tRPC router codegen gate — see the root `CLAUDE.md` for the full explanation.

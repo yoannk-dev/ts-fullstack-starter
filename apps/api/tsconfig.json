@@ -5,8 +5,10 @@
     "moduleResolution": "Bundler",
     "outDir": "dist",
     "rootDir": ".",
-    "exactOptionalPropertyTypes": false
+    "exactOptionalPropertyTypes": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src", "generated"],
+  "include": ["src", "prisma/generated"],
   "exclude": ["node_modules", "dist"]
 }
