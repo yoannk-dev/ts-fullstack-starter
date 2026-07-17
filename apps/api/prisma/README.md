@@ -20,6 +20,14 @@ Open Prisma Studio (visual database UI):
 pnpm db:studio
 ```
 
+## Seeding
+
+`prisma/seed.ts` populates the database with a default user and a handful of realistic todos (varied statuses/priorities, some due dates in the past and some in the future, so sorting/filtering has something to show). The seed command is registered in `prisma.config.ts` (`migrations.seed`), so it also runs automatically after `pnpm db:migrate`. To run it on demand:
+
+```bash
+pnpm db:seed
+```
+
 ## Client generation
 
 The typed client is generated in `prisma/generated/` from the schema. It is automatically regenerated after each `pnpm install` (via `postinstall`). To regenerate it manually:

@@ -17,7 +17,8 @@ pnpm test                             # vitest run across all packages
 pnpm --filter @repo/api dev           # API only, on :3001, watch mode
 pnpm --filter @repo/web dev           # web only, on :3000
 pnpm --filter @repo/api exec vitest run path/to/file.test.ts   # single test file
-pnpm --filter @repo/api db:migrate    # prisma migrate dev
+pnpm --filter @repo/api db:migrate    # prisma migrate dev (also runs db:seed automatically)
+pnpm --filter @repo/api db:seed       # prisma db seed — populates a default user + sample todos
 pnpm --filter @repo/api db:studio     # prisma studio
 pnpm --filter @repo/api trpc:generate # regenerate the tRPC AppRouter type (see below)
 ```
@@ -30,15 +31,15 @@ Monorepo: pnpm workspaces (`apps/*`, `packages/*`) + Turborepo. Packages use the
 
 - `apps/api` — NestJS backend, dual REST + tRPC API, Prisma/SQLite.
 - `apps/web` — Next.js 15 (App Router) frontend, consumes the API exclusively via a tRPC client.
-- `packages/types` — shared Zod schemas (`Post`, `User`, `CreatePostSchema`, `UpdatePostSchema`, etc.), consumed by both apps and reused as tRPC input/output validators. **Ships as raw `.ts` source with no build step** — its `package.json` `exports` point directly at `./src/index.ts`. This is why `apps/api` cannot use a plain `tsc`-compile-then-`node` execution model (see "How apps/api actually runs" below).
+- `packages/types` — shared Zod schemas (`Todo`, `User`, `CreateTodoSchema`, `UpdateTodoSchema`, `StatusSchema`, `PrioritySchema`, etc.), consumed by both apps and reused as tRPC input/output validators. **Ships as raw `.ts` source with no build step** — its `package.json` `exports` point directly at `./src/index.ts`. This is why `apps/api` cannot use a plain `tsc`-compile-then-`node` execution model (see "How apps/api actually runs" below).
 
 ### `apps/api`: NestJS hosting both REST and tRPC on the same server
 
 The API is not a REST-only or tRPC-only service — it's both, on the same Express instance under NestJS:
 
-- **REST** (`src/post/post.controller.ts`) — conventional Nest controllers/DTOs (`class-validator`), documented via `@nestjs/swagger` at `/api/docs`.
-- **tRPC** (`src/trpc/post.router.ts`) — via `nestjs-trpc`, using `@Router()`/`@Query()`/`@Mutation()`/`@Input()` decorators. Router classes are ordinary Nest providers (constructor-injectable), registered in `post.module.ts`.
-- Both the REST controller and the tRPC router **delegate to the same `PostService`** — Prisma query logic lives in exactly one place.
+- **REST** (`src/todo/todo.controller.ts`) — conventional Nest controllers/DTOs (`class-validator`), documented via `@nestjs/swagger` at `/api/docs`.
+- **tRPC** (`src/trpc/todo.router.ts`) — via `nestjs-trpc`, using `@Router()`/`@Query()`/`@Mutation()`/`@Input()` decorators. Router classes are ordinary Nest providers (constructor-injectable), registered in `todo.module.ts`.
+- Both the REST controller and the tRPC router **delegate to the same `TodoService`** — Prisma query logic lives in exactly one place.
 - `src/common/` holds cross-cutting REST concerns: `ApiKeyGuard` (checked via `x-api-key`, applied only to REST mutations — tRPC mutations are not guarded), `LoggerMiddleware` (global, but only actually logs REST traffic — `nestjs-trpc` mounts its own Express handler that bypasses Nest's middleware layer), `TransformInterceptor` (wraps REST responses as `{success, data, timestamp}`; does **not** affect tRPC responses, which keep the raw tRPC wire shape `{"result":{"data":...}}` that `apps/web`'s `httpBatchLink` expects).
 
 ### The `AppRouter` type contract with `apps/web`
@@ -51,7 +52,7 @@ export type { AppRouter } from "./generated/server.js";
 
 `src/router/generated/server.ts` is produced by the `nestjs-trpc generate` CLI (a separate Rust binary, not part of `TRPCModuleOptions`) — it's gitignored and regenerated on every `build`. It statically parses `TRPCModule.forRoot(...)`, which must be reachable directly from `app.module.ts` (inlined in `AppModule`'s `imports`, not wrapped in a sub-module — the generator's static analysis doesn't traverse into imported modules). The generated file only carries *types*; procedure bodies are placeholders. The real runtime router is built via live reflection over the `@Router()`-decorated classes at Nest bootstrap.
 
-If you add a new tRPC router, give it an explicit `@Router({ alias: "..." })` — without it, the top-level procedure-tree key defaults to the class name (e.g. `PostRouter` → `postRouter`, not `post`), which would silently break `apps/web`'s `trpc.post.*` calls.
+If you add a new tRPC router, give it an explicit `@Router({ alias: "..." })` — without it, the top-level procedure-tree key defaults to the class name (e.g. `TodoRouter` → `todoRouter`, not `todo`), which would silently break `apps/web`'s `trpc.todo.*` calls.
 
 ### How `apps/api` actually runs (not the standard Nest CLI pipeline)
 

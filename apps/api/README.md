@@ -6,15 +6,15 @@ HTTP server exposing a type-safe API — both REST and tRPC — backed by a SQLi
 
 **[NestJS](https://nestjs.com/)** — Application framework providing modules, dependency injection, guards, interceptors, and middleware. Runs on the `@nestjs/platform-express` HTTP adapter. REST controllers and the tRPC layer both live inside the same Nest DI container and share the same services.
 
-**[nestjs-trpc](https://nestjs-trpc.io/)** — Integrates tRPC into NestJS with native decorators (`@Router`, `@Query`, `@Mutation`, `@Input`). tRPC router classes are ordinary Nest providers — they can constructor-inject `PrismaService`/`PostService` like any other class. The tRPC handler is auto-mounted on `/trpc` on the same Express instance NestJS uses for REST.
+**[nestjs-trpc](https://nestjs-trpc.io/)** — Integrates tRPC into NestJS with native decorators (`@Router`, `@Query`, `@Mutation`, `@Input`). tRPC router classes are ordinary Nest providers — they can constructor-inject `PrismaService`/`TodoService` like any other class. The tRPC handler is auto-mounted on `/trpc` on the same Express instance NestJS uses for REST.
 
 **[tRPC](https://trpc.io/)** — End-to-end TypeScript procedures for `apps/web`. The shared `AppRouter` type (exported from `src/router/index.ts`, re-exporting a generated type file) is the contract between client and server — zero runtime code generation involved.
 
-**[Prisma](https://www.prisma.io/)** — ORM used to model the database schema and interact with SQLite. The schema (`prisma/schema.prisma`) is the single source of truth: it drives both the migrations and the generated TypeScript client. See [`prisma/README.md`](./prisma/README.md) for migration workflows.
+**[Prisma](https://www.prisma.io/)** — ORM used to model the database schema and interact with SQLite. The schema (`prisma/schema.prisma`) is the single source of truth: it drives both the migrations and the generated TypeScript client. See [`prisma/README.md`](./prisma/README.md) for migration and seeding workflows.
 
 **[Zod](https://zod.dev/)** — Runtime validation for tRPC procedure inputs/outputs. Schemas are shared across the monorepo via `@repo/types`, so the frontend and backend validate against the same rules.
 
-**[class-validator](https://github.com/typestack/class-validator) / [class-transformer](https://github.com/typestack/class-transformer)** — Validate and transform the DTOs used by the REST controllers (`@IsString`, `@IsUrl`, etc.), enforced globally via a `ValidationPipe` in `main.ts`.
+**[class-validator](https://github.com/typestack/class-validator) / [class-transformer](https://github.com/typestack/class-transformer)** — Validate and transform the DTOs used by the REST controllers (`@IsString`, `@IsEnum`, etc.), enforced globally via a `ValidationPipe` in `main.ts`.
 
 **[@nestjs/swagger](https://docs.nestjs.com/openapi/introduction)** — Generates OpenAPI docs for the REST endpoints, served at `/api/docs`. Protected routes are documented with `@ApiSecurity('x-api-key')`.
 
@@ -25,11 +25,11 @@ This is a deliberate demonstration of two exposure patterns side by side, not ac
 - **tRPC** is the *internal* API — the only thing `apps/web` talks to. It's a trusted, first-party client, so procedures aren't guarded and there's no Swagger doc; type-safety comes from importing `AppRouter` directly.
 - **REST** is modeled as the *external/third-party* surface — untrusted callers without a TypeScript client, hence the Swagger docs at `/api/docs` and the `ApiKeyGuard` on mutations.
 
-That's why REST mutations require `x-api-key` but tRPC mutations don't — it's an intentional trust boundary, not an oversight. Both delegate to the same `PostService` so business logic isn't duplicated, only the transport/validation/doc/auth layer differs.
+That's why REST mutations require `x-api-key` but tRPC mutations don't — it's an intentional trust boundary, not an oversight. Both delegate to the same `TodoService` so business logic isn't duplicated, only the transport/validation/doc/auth layer differs.
 
 ## Architecture
 
-REST and tRPC are two parallel entry points into the same application — they share `PostService` (which owns all Prisma queries) rather than duplicating query logic:
+REST and tRPC are two parallel entry points into the same application — they share `TodoService` (which owns all Prisma queries) rather than duplicating query logic:
 
 ```
 Frontend (apps/web)
@@ -39,14 +39,14 @@ Frontend (apps/web)
 ┌───────────────────────────────────────────────┐
 │                   NestJS                       │
 │  ┌───────────────┐        ┌──────────────────┐ │
-│  │ PostController │        │    PostRouter     │ │
+│  │ TodoController │        │    TodoRouter     │ │
 │  │  (REST, DTOs,  │        │ (tRPC, Zod via    │ │
 │  │  class-        │        │  @repo/types,     │ │
 │  │  validator)    │        │  nestjs-trpc)      │ │
 │  └───────┬────────┘        └─────────┬─────────┘ │
 │          └──────────┬───────────────┘            │
 │                 ┌────▼─────┐                      │
-│                 │PostService│                      │
+│                 │TodoService│                      │
 │                 └────┬─────┘                      │
 │  common/: ApiKeyGuard (REST mutations),           │
 │  LoggerMiddleware (REST only), TransformInterceptor│
@@ -59,8 +59,8 @@ Frontend (apps/web)
               └───────────────────┘
 ```
 
-REST: `GET/POST /posts`, `GET/PATCH/DELETE /posts/:id`, docs at `/api/docs`.
-tRPC: `post.findAll`, `post.findById`, `post.create`, `post.update`, `post.delete`, mounted at `/trpc`.
+REST: `GET/POST /todos`, `GET/PATCH/DELETE /todos/:id` (`findAll` accepts `?search=&status=`), docs at `/api/docs`.
+tRPC: `todo.findAll`, `todo.findById`, `todo.create`, `todo.update`, `todo.delete`, mounted at `/trpc`.
 
 ## Running
 

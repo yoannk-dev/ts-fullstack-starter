@@ -3,8 +3,8 @@ import { Providers } from "@/lib/trpc/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ts-fullstack-starter",
-  description: "Full-stack TypeScript monorepo boilerplate",
+  title: "Todos — ts-fullstack-starter",
+  description: "Full-stack TypeScript monorepo boilerplate — todo list demo (REST + tRPC)",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -5,6 +5,7 @@ export default defineConfig({
   schema: path.join("prisma", "schema.prisma"),
   migrations: {
     path: path.join("prisma", "migrations"),
+    seed: "node --import @swc-node/register/esm-register prisma/seed.ts",
   },
   datasource: {
     url: `file:${path.join("prisma", "dev.db")}`,
