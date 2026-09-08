@@ -15,7 +15,7 @@ import { ApiKeyGuard } from "../common/guards/api-key.guard.js";
 import { Status } from "../../prisma/generated/enums.js";
 import { CreateTodoDto } from "./dto/create-todo.dto.js";
 import { UpdateTodoDto } from "./dto/update-todo.dto.js";
-import { TodoService } from "./todo.service.js";
+import { DEFAULT_TAKE, MAX_TAKE, TodoService } from "./todo.service.js";
 
 @ApiTags("todos")
 @Controller("todos")
@@ -26,9 +26,16 @@ export class TodoController {
   @ApiOperation({ summary: "List all todos" })
   @ApiQuery({ name: "search", required: false, type: String })
   @ApiQuery({ name: "status", required: false, enum: Status })
+  @ApiQuery({ name: "take", required: false, type: Number, description: `Default ${String(DEFAULT_TAKE)}, max ${String(MAX_TAKE)}` })
+  @ApiQuery({ name: "skip", required: false, type: Number })
   @ApiResponse({ status: 200, description: "The list of todos, most recent first." })
-  findAll(@Query("search") search?: string, @Query("status") status?: Status) {
-    return this.todoService.findAll({ search, status });
+  findAll(
+    @Query("search") search?: string,
+    @Query("status") status?: Status,
+    @Query("take", new ParseIntPipe({ optional: true })) take?: number,
+    @Query("skip", new ParseIntPipe({ optional: true })) skip?: number,
+  ) {
+    return this.todoService.findAll({ search, status, take, skip });
   }
 
   @Get(":id")

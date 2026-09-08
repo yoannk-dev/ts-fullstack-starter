@@ -5,6 +5,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
 import { AppModule } from "./app.module.js";
+import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor.js";
 import type { Env } from "./env.validation.js";
 
@@ -16,6 +17,7 @@ async function bootstrap() {
   app.enableCors({ origin: configService.get("WEB_ORIGIN", { infer: true }) });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new TransformInterceptor());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("ts-fullstack-starter — API")

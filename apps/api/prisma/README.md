@@ -35,3 +35,7 @@ The typed client is generated in `prisma/generated/` from the schema. It is **no
 ```bash
 pnpm prisma generate
 ```
+
+## Known limitation: field-level `@map` is not honored by this generator
+
+`schema.prisma` does not use `@map(...)` on any `Todo` field (`dueDate`, `authorId` are camelCase both in Prisma and in the actual SQLite columns) — this is deliberate, not an oversight. Verified directly (query logging + raw `sqlite3` inspection): with `generator client { provider = "prisma-client" }` (Prisma 7's newer, engine-less generator) on `@prisma/adapter-better-sqlite3`, field-level `@map("snake_case")` is silently **not** applied when building queries — the client queries the literal Prisma field name as the column name regardless of `@map`. Table-level `@@map(...)` *is* honored (`Todo` → `todos` works correctly). This is a generator limitation (or at least undocumented preview behavior as of `prisma@7.8.0`), not something fixable in this codebase — adding `@map` back would only reintroduce drift between what `prisma migrate dev`'s diff engine expects (it *does* read `@map`) and what the runtime client actually queries.
