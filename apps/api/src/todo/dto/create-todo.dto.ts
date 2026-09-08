@@ -1,18 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsDate, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import {
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 import { Priority, Status } from "../../../prisma/generated/enums.js";
 
 export class CreateTodoDto {
   @ApiProperty({ type: String, example: "Write the quarterly report" })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   title!: string;
 
-  @ApiPropertyOptional({ type: String, example: "Include Q3 revenue breakdown" })
+  @ApiPropertyOptional({ type: String, example: "Include Q3 revenue breakdown", nullable: true })
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional({ enum: Status, example: Status.TODO })
   @IsOptional()

@@ -13,8 +13,13 @@ export default function EditTodoPage({ params }: { params: Promise<{ id: string 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const { data: todo, isLoading } = useQuery(trpc.todo.findById.queryOptions({ id: todoId }));
-  const { mutateAsync, error } = useMutation(trpc.todo.update.mutationOptions());
+  const {
+    data: todo,
+    isLoading,
+    error: loadError,
+  } = useQuery(trpc.todo.findById.queryOptions({ id: todoId }));
+  const isNotFound = loadError?.data?.code === "NOT_FOUND";
+  const { mutateAsync, error: submitErrorValue } = useMutation(trpc.todo.update.mutationOptions());
 
   const onSubmit = async (values: TodoFormValues) => {
     await mutateAsync({
@@ -51,9 +56,13 @@ export default function EditTodoPage({ params }: { params: Promise<{ id: string 
             <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
           ))}
         </div>
-      ) : !todo ? (
+      ) : isNotFound ? (
         <p className="text-sm text-gray-400">This todo could not be found.</p>
-      ) : (
+      ) : loadError ? (
+        <p className="text-sm text-red-600">
+          Something went wrong loading this todo. Please try again.
+        </p>
+      ) : todo ? (
         <TodoForm
           defaultValues={{
             title: todo.title,
@@ -65,9 +74,9 @@ export default function EditTodoPage({ params }: { params: Promise<{ id: string 
           onSubmit={onSubmit}
           submitLabel="Save changes"
           pendingLabel="Saving…"
-          submitError={Boolean(error)}
+          submitError={Boolean(submitErrorValue)}
         />
-      )}
+      ) : null}
     </main>
   );
 }

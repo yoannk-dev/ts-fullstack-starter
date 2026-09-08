@@ -25,7 +25,7 @@ type SortKey = "dueDate" | "priority";
 export default function Home() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { data: todos, isLoading } = useQuery(trpc.todo.findAll.queryOptions());
+  const { data: todos, isLoading, error } = useQuery(trpc.todo.findAll.queryOptions());
 
   const toggleStatus = useMutation(
     trpc.todo.update.mutationOptions({
@@ -165,6 +165,10 @@ export default function Home() {
             <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
           ))}
         </div>
+      ) : error ? (
+        <p className="text-sm text-red-600 text-center py-12">
+          Something went wrong loading your todos. Please try again.
+        </p>
       ) : visibleTodos.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-12">No todos match your filters.</p>
       ) : (
