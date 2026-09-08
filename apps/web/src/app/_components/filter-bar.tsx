@@ -1,6 +1,5 @@
 import type { Status } from "@repo/types";
-
-export type SortKey = "dueDate" | "priority";
+import type { SortKey } from "@/lib/filter-sort-todos";
 
 export function FilterBar({
   search,

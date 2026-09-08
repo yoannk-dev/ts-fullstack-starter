@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/lib/trpc/react";
 import { useOptimisticTodoListMutation, type TodoListItem } from "@/lib/hooks/use-optimistic-todo-list-mutation";
+import { filterAndSortTodos, type SortKey } from "@/lib/filter-sort-todos";
 import type { Status } from "@repo/types";
 import { ConfirmDialog } from "./confirm-dialog";
-import { FilterBar, type SortKey } from "./filter-bar";
+import { FilterBar } from "./filter-bar";
 import { TodoRow } from "./todo-row";
 import { TodoSkeleton } from "./todo-skeleton";
-import { NEXT_STATUS, PRIORITY_RANK } from "../todos/_lib/display";
+import { NEXT_STATUS } from "../todos/_lib/display";
 
 export function TodoList() {
   const trpc = useTRPC();
@@ -43,24 +44,10 @@ export function TodoList() {
   const [statusFilter, setStatusFilter] = useState<Status | "ALL">("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
 
-  const visibleTodos = useMemo(() => {
-    if (!todos) return [];
-
-    const filtered = todos.filter((todo) => {
-      const matchesSearch = todo.title.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "ALL" || todo.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-
-    return [...filtered].sort((a, b) => {
-      if (sortKey === "priority") {
-        return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
-      }
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
-  }, [todos, search, statusFilter, sortKey]);
+  const visibleTodos = useMemo(
+    () => (todos ? filterAndSortTodos(todos, { search, statusFilter, sortKey }) : []),
+    [todos, search, statusFilter, sortKey],
+  );
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-12">
