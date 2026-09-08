@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/lib/trpc/react";
+import { BackButton } from "../_components/back-button";
 import { TodoForm, type TodoFormValues } from "../_components/todo-form";
 
 export default function NewTodoPage() {
@@ -25,14 +26,7 @@ export default function NewTodoPage() {
   return (
     <main className="max-w-2xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <button
-          onClick={() => {
-            router.back();
-          }}
-          className="text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4 flex items-center gap-1"
-        >
-          ← Back
-        </button>
+        <BackButton />
         <h1 className="text-3xl font-bold tracking-tight">New todo</h1>
       </div>
 

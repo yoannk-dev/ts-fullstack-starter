@@ -41,7 +41,7 @@ export function TodoRow({
             <span className={`text-xs font-medium ${PRIORITY_TEXT_CLASSES[todo.priority]}`}>
               {PRIORITY_LABELS[todo.priority]}
             </span>
-            <span className="text-xs text-gray-400">{formatDueDate(todo.dueDate)}</span>
+            <span className="text-xs text-gray-500">{formatDueDate(todo.dueDate)}</span>
           </div>
         </div>
 
@@ -49,7 +49,7 @@ export function TodoRow({
           <Link
             href={`/todos/${String(todo.id)}/edit`}
             aria-label={`Edit "${todo.title}"`}
-            className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors"
+            className="text-xs font-medium text-gray-600 hover:text-gray-700 transition-colors"
           >
             Edit
           </Link>
@@ -59,7 +59,7 @@ export function TodoRow({
               onRequestDelete(todo.id);
             }}
             aria-label={`Delete "${todo.title}"`}
-            className="text-xs font-medium text-gray-400 hover:text-red-600 transition-colors"
+            className="text-xs font-medium text-gray-600 hover:text-red-600 transition-colors"
           >
             Delete
           </button>

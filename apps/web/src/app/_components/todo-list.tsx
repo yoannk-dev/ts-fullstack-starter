@@ -9,6 +9,7 @@ import type { Status } from "@repo/types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FilterBar, type SortKey } from "./filter-bar";
 import { TodoRow } from "./todo-row";
+import { TodoSkeleton } from "./todo-skeleton";
 import { NEXT_STATUS, PRIORITY_RANK } from "../todos/_lib/display";
 
 export function TodoList() {
@@ -17,10 +18,6 @@ export function TodoList() {
 
   const toggleStatus = useOptimisticTodoListMutation(
     trpc.todo.update.mutationOptions(),
-    // Only `status` is ever sent by cycleStatus below — merging arbitrary
-    // `data` here would need to reconcile its pre-wire `Date` typing against
-    // the list's already-serialized `string` dueDate, for a field this
-    // mutation never actually touches.
     (list, { id, data }) =>
       list?.map((todo) => (todo.id === id && data.status ? { ...todo, status: data.status } : todo)),
   );
@@ -87,17 +84,13 @@ export function TodoList() {
       />
 
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <TodoSkeleton rows={3} />
       ) : error ? (
         <p className="text-sm text-red-600 text-center py-12">
           Something went wrong loading your todos. Please try again.
         </p>
       ) : visibleTodos.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">No todos match your filters.</p>
+        <p className="text-sm text-gray-500 text-center py-12">No todos match your filters.</p>
       ) : (
         <ul className="space-y-3">
           {visibleTodos.map((todo) => (
