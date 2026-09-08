@@ -20,7 +20,7 @@ Next.js frontend consuming the tRPC API, with a strongly-typed data layer.
 ┌────────────────────────────────────────────────────┐
 │                      Next.js                        │
 │                                                      │
-│  page.tsx (Server Component)                        │
+│  page.tsx, todos/[id]/page.tsx (Server Components)   │
 │  lib/trpc/server.ts — server-side tRPC caller        │
 │       │ direct HTTP + x-api-key (server-only env)    │
 │       ▼                                              │
@@ -29,7 +29,8 @@ Next.js frontend consuming the tRPC API, with a strongly-typed data layer.
 │       │ prefetchQuery() result dehydrated into  │     │
 │       │ <HydrationBoundary>, hydrated client-side│     │
 │       │                                          │     │
-│  Browser (Client Components: TodoList, detail/edit) │  │
+│  Browser (Client Components: TodoList, TodoDetail,  │  │
+│  edit/new forms)                                     │  │
 │  ┌──────────────────────┐                        │  │
 │  │    TanStack Query    │  Server state & caching  │  │
 │  │  ┌────────────────┐  │                          │  │
@@ -45,7 +46,7 @@ Next.js frontend consuming the tRPC API, with a strongly-typed data layer.
 
 ### Two ways this app talks to `apps/api`, and why both exist
 
-- **Server Components** (currently just `page.tsx`, the todo list) call `apps/api` **directly** over HTTP via `lib/trpc/server.ts` — a vanilla tRPC client (`createTRPCOptionsProxy`) that attaches `x-api-key` from the server-only `API_KEY` env var. This code has `import "server-only"` at the top, so it fails the build if anything ever imports it from a Client Component. The result is `prefetchQuery`'d into a per-request `QueryClient`, then `dehydrate()`d and passed to `<HydrationBoundary>` — the client-side `useQuery(trpc.todo.findAll.queryOptions())` in `TodoList` picks up that exact same cache entry on hydration (same query key, generated the same way on both sides), so the list renders with real data in the initial HTML instead of a loading skeleton, with no separate client-side fetch on first paint.
+- **Server Components** (`page.tsx`, the todo list; `todos/[id]/page.tsx`, the detail page) call `apps/api` **directly** over HTTP via `lib/trpc/server.ts` — a vanilla tRPC client (`createTRPCOptionsProxy`) that attaches `x-api-key` from the server-only `API_KEY` env var. This code has `import "server-only"` at the top, so it fails the build if anything ever imports it from a Client Component. The result is `prefetchQuery`'d into a per-request `QueryClient`, then `dehydrate()`d and passed to `<HydrationBoundary>` — the client-side `useQuery(trpc.todo.findAll.queryOptions())`/`useQuery(trpc.todo.findById.queryOptions())` in `TodoList`/`TodoDetail` picks up that exact same cache entry on hydration (same query key, generated the same way on both sides), so both pages render with real data in the initial HTML instead of a loading skeleton, with no separate client-side fetch on first paint. `todos/[id]/page.tsx` also uses a direct `queryClient.fetchQuery` call (deduped by Next's request-scoped `fetch` cache against the identical prefetch below it) inside `generateMetadata`, so the page `<title>` is the todo's own title rather than a static string — something a `"use client"` page can't do at all.
 - **Client Components** (`TodoList`'s mutations, and the detail/edit/new pages, which remain fully client-rendered) go through the `app/api/trpc/[...trpc]/route.ts` proxy described below — they can't hold `API_KEY` themselves.
 
 `page.tsx` is marked `export const dynamic = "force-dynamic"` — without it, Next.js would prerender the list once at build time and serve that frozen snapshot to every visitor, since nothing here uses request-time input like cookies or search params to otherwise signal "don't cache this."
