@@ -1,4 +1,4 @@
-import type { Status } from "@repo/types";
+import type { Priority, Status } from "@repo/types";
 
 export const NEXT_STATUS: Record<Status, Status> = {
   TODO: "IN_PROGRESS",
@@ -18,17 +18,23 @@ export const STATUS_BADGE_CLASSES: Record<Status, string> = {
   DONE: "bg-green-100 text-green-700",
 };
 
-export const PRIORITY_LABELS = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" } as const;
-export const PRIORITY_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
-export const PRIORITY_TEXT_CLASSES = {
+export const PRIORITY_LABELS: Record<Priority, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
+export const PRIORITY_RANK: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+export const PRIORITY_TEXT_CLASSES: Record<Priority, string> = {
   LOW: "text-gray-400",
   MEDIUM: "text-amber-600",
   HIGH: "text-red-600",
-} as const;
+};
+
+// Locale is pinned rather than left to the runtime default: the server
+// (Node, host locale) and the browser (its own locale) can disagree, and
+// since page.tsx now renders this on the server, a mismatch there is a
+// hydration error, not just a cosmetic inconsistency.
+const DATE_LOCALE = "en-US";
 
 export function formatDueDate(dueDate: Date | string | null) {
   if (!dueDate) return "No due date";
-  return new Date(dueDate).toLocaleDateString(undefined, {
+  return new Date(dueDate).toLocaleDateString(DATE_LOCALE, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -36,7 +42,7 @@ export function formatDueDate(dueDate: Date | string | null) {
 }
 
 export function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString(undefined, {
+  return new Date(value).toLocaleString(DATE_LOCALE, {
     year: "numeric",
     month: "short",
     day: "numeric",

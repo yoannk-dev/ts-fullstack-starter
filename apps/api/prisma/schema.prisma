@@ -25,12 +25,14 @@ model Todo {
   description String?
   status      Status    @default(TODO)
   priority    Priority  @default(MEDIUM)
-  dueDate     DateTime? @map("due_date")
+  dueDate     DateTime?
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   author      User      @relation(fields: [authorId], references: [id])
-  authorId    Int       @map("author_id")
+  authorId    Int
 
+  @@index([authorId])
+  @@index([status])
   @@map("todos")
 }
 

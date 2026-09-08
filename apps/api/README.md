@@ -38,6 +38,13 @@ Earlier revisions of this README argued that tRPC mutations didn't need a guard 
 - **Global rate limiting** via `@nestjs/throttler` (100 req/min per client) — applied through Nest's `APP_GUARD`, which only covers REST. `nestjs-trpc` mounts its own Express handler bypassing Nest's normal request pipeline (same reason `LoggerMiddleware` never logs tRPC traffic — see Architecture below), so tRPC currently has no rate limiting of its own.
 - **Env validation at boot** (`src/env.validation.ts`, Zod) — the app now refuses to start if `API_KEY` is missing, instead of silently booting into a state where the guard "fails closed" by accident.
 
+## Error handling
+
+Both transports normalize errors instead of leaking Prisma's raw messages/stack traces to clients:
+
+- **REST**: `AllExceptionsFilter` (`common/filters/all-exceptions.filter.ts`), registered globally in `main.ts`, passes through `HttpException`s as-is, maps known Prisma error codes (`common/prisma-error.util.ts` — e.g. `P2025` → 404, `P2003` → 400) to a proper status + sanitized message, and falls back to a generic 500 (logging the real error server-side) for anything else.
+- **tRPC**: `callTodoProcedure` (`src/trpc/trpc-error.util.ts`) wraps every procedure and performs the same translation, mapped to the equivalent `TRPCError` code. `TodoService` still throws `NotFoundException` explicitly for the "row doesn't exist" case (a business-meaningful 404 with a specific message); this layer is the safety net for everything else (e.g. an invalid `authorId` on `create` — previously an unhandled 500 leaking the Prisma error message verbatim over tRPC).
+
 ## Known limitations
 
 - **`authorId` isn't verified.** There's no session/auth concept in this starter — any caller holding the shared `x-api-key` can create a todo under any `authorId`, including one that doesn't belong to them (see the comment on `CreateTodoDto.authorId`). Fixing this needs real per-user authentication (sessions or JWTs) plus a `User` create/list surface, which doesn't exist yet either — deliberately out of scope for a starter template, not an oversight.
@@ -74,8 +81,10 @@ Frontend (apps/web)
               └───────────────────┘
 ```
 
-REST: `GET/POST /todos`, `GET/PATCH/DELETE /todos/:id` (`findAll` accepts `?search=&status=`), docs at `/api/docs`.
+REST: `GET/POST /todos`, `GET/PATCH/DELETE /todos/:id` (`findAll` accepts `?search=&status=&take=&skip=`), docs at `/api/docs`.
 tRPC: `todo.findAll`, `todo.findById`, `todo.create`, `todo.update`, `todo.delete`, mounted at `/trpc`.
+
+`findAll` is paginated (`take`/`skip`, default `take=50`, max `100`, enforced in `TodoService.findAll`) with matching indexes on `authorId` and `status` (migration `add_todo_indexes`). `apps/web` doesn't yet page through this — it fetches the default window and still filters/sorts client-side; wiring the list UI to page controls would mean moving that filtering server-side too, which is a separate piece of work.
 
 ## Running
 
