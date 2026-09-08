@@ -17,19 +17,27 @@ Next.js frontend consuming the tRPC API, with a strongly-typed data layer.
 ## Architecture
 
 ```
-┌─────────────────────────────┐
-│          Next.js            │  SSR / App Router / Turbopack
-│  ┌──────────────────────┐   │
-│  │    TanStack Query    │   │  Server state & caching
-│  │  ┌────────────────┐  │   │
-│  │  │   tRPC client  │  │   │  Type-safe API calls (AppRouter)
-│  │  └────────────────┘  │   │
-│  └──────────────────────┘   │
-│  ┌──────────────────────┐   │
-│  │   Tailwind CSS v4    │   │  Utility-first styling
-│  └──────────────────────┘   │
-└────────────┬────────────────┘
-             │  HTTP (tRPC batch)
-             ▼
-       apps/api  :3001
+┌──────────────────────────────────────┐
+│              Next.js                  │  SSR / App Router / Turbopack
+│  Browser (Client Components)          │
+│  ┌──────────────────────┐             │
+│  │    TanStack Query    │             │  Server state & caching
+│  │  ┌────────────────┐  │             │
+│  │  │   tRPC client  │  │             │  Type-safe API calls (AppRouter)
+│  │  └───────┬────────┘  │             │
+│  └──────────┼───────────┘             │
+│             │ same-origin fetch        │
+│             ▼                          │
+│  app/api/trpc/[...trpc]/route.ts       │  Server-side proxy —
+│  (Node, never runs in the browser)     │  attaches x-api-key
+└──────────────────┬─────────────────────┘
+                    │  HTTP (tRPC batch) + x-api-key
+                    ▼
+              apps/api  :3001
 ```
+
+### Why a proxy route instead of calling the API directly
+
+Every page here is a Client Component, so the tRPC client runs in the browser. `apps/api`'s mutations require `x-api-key` (see `apps/api/README.md#security`) — if the browser called `apps/api` directly, that key would have to be embedded in client JS via `NEXT_PUBLIC_*`, which means anyone could read it from devtools. `app/api/trpc/[...trpc]/route.ts` runs only on the Next.js server: it forwards every tRPC request to `apps/api` and attaches the key from `API_KEY` (a plain, non-`NEXT_PUBLIC_` env var, so it's never bundled into client JS). The browser only ever talks to its own origin (`/api/trpc`).
+
+`.env`/`.env.example` accordingly define `API_URL` (where the real API lives) and `API_KEY` (shared with `apps/api`'s own `.env`) — not `NEXT_PUBLIC_API_URL`, which this replaces.

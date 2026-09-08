@@ -39,6 +39,11 @@ export class CreateTodoDto {
   @IsDate()
   dueDate?: Date;
 
+  /**
+   * Trusted at face value: there's no auth/session in this starter, so
+   * nothing verifies the caller actually is this author. Known limitation,
+   * not an oversight — see apps/api/README.md#known-limitations.
+   */
   @ApiProperty({ type: Number, example: 1 })
   @IsInt()
   authorId!: number;

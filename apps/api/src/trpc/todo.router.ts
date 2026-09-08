@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { CreateTodoSchema, StatusSchema, TodoSchema, UpdateTodoSchema } from "@repo/types";
 import { TRPCError } from "@trpc/server";
-import { Input, Mutation, Query, Router } from "nestjs-trpc";
+import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
 import { z } from "zod";
 import { TodoService } from "../todo/todo.service.js";
+import { TrpcApiKeyMiddleware } from "./api-key.middleware.js";
 
 const idInput = z.object({ id: z.number().int() });
 const updateInput = z.object({ id: z.number().int(), data: UpdateTodoSchema });
@@ -37,16 +38,19 @@ export class TodoRouter {
     return rethrowAsTRPCError(() => this.todoService.findOne(input.id));
   }
 
+  @UseMiddlewares(TrpcApiKeyMiddleware)
   @Mutation({ input: CreateTodoSchema, output: TodoSchema })
   create(@Input() input: z.infer<typeof CreateTodoSchema>) {
     return this.todoService.create(input);
   }
 
+  @UseMiddlewares(TrpcApiKeyMiddleware)
   @Mutation({ input: updateInput, output: TodoSchema })
   update(@Input() input: z.infer<typeof updateInput>) {
     return rethrowAsTRPCError(() => this.todoService.update(input.id, input.data));
   }
 
+  @UseMiddlewares(TrpcApiKeyMiddleware)
   @Mutation({ input: idInput, output: TodoSchema })
   delete(@Input() input: z.infer<typeof idInput>) {
     return rethrowAsTRPCError(() => this.todoService.remove(input.id));
