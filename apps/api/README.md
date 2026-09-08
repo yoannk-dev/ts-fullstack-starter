@@ -22,10 +22,25 @@ HTTP server exposing a type-safe API — both REST and tRPC — backed by a SQLi
 
 This is a deliberate demonstration of two exposure patterns side by side, not accidental duplication:
 
-- **tRPC** is the *internal* API — the only thing `apps/web` talks to. It's a trusted, first-party client, so procedures aren't guarded and there's no Swagger doc; type-safety comes from importing `AppRouter` directly.
-- **REST** is modeled as the *external/third-party* surface — untrusted callers without a TypeScript client, hence the Swagger docs at `/api/docs` and the `ApiKeyGuard` on mutations.
+- **tRPC** is the *internal* API — the only thing `apps/web` talks to. Type-safety comes from importing `AppRouter` directly; there's no Swagger doc for it.
+- **REST** is modeled as the *external/third-party* surface — untrusted callers without a TypeScript client, hence the Swagger docs at `/api/docs`.
 
-That's why REST mutations require `x-api-key` but tRPC mutations don't — it's an intentional trust boundary, not an oversight. Both delegate to the same `TodoService` so business logic isn't duplicated, only the transport/validation/doc/auth layer differs.
+Both delegate to the same `TodoService` so business logic isn't duplicated, only the transport/validation/doc layer differs.
+
+Earlier revisions of this README argued that tRPC mutations didn't need a guard because tRPC is "a trusted, first-party client." That argument doesn't hold: CORS only constrains browser-based cross-origin `fetch`/XHR calls, it does nothing to stop a direct `curl`/script hitting `/trpc` on the network. So tRPC mutations (`create`/`update`/`delete`) are now guarded the same way REST mutations are — see Security below.
+
+## Security
+
+- **`x-api-key` on every mutation, REST and tRPC.** REST uses `ApiKeyGuard` (`common/guards/api-key.guard.ts`); tRPC mutations use an equivalent `nestjs-trpc` middleware, `TrpcApiKeyMiddleware` (`src/trpc/api-key.middleware.ts`), applied per-procedure via `@UseMiddlewares(...)`. Queries (`findAll`/`findById`) stay unguarded on both transports — read access is intentionally open.
+- **`apps/web` never sees the key.** Since `apps/web` is entirely client-rendered, the browser would otherwise have to carry the API key itself to call guarded tRPC mutations — which means shipping a "secret" in client JS, visible to anyone via devtools. Instead, `apps/web`'s `app/api/trpc/[...trpc]/route.ts` proxies every tRPC call server-side and attaches `x-api-key` there, from a non-`NEXT_PUBLIC_` env var. The browser only ever talks to its own same-origin `/api/trpc`.
+- **CORS is restricted** to `WEB_ORIGIN` (`main.ts`), not the previous open wildcard.
+- **`helmet()`** sets standard security headers on every response.
+- **Global rate limiting** via `@nestjs/throttler` (100 req/min per client) — applied through Nest's `APP_GUARD`, which only covers REST. `nestjs-trpc` mounts its own Express handler bypassing Nest's normal request pipeline (same reason `LoggerMiddleware` never logs tRPC traffic — see Architecture below), so tRPC currently has no rate limiting of its own.
+- **Env validation at boot** (`src/env.validation.ts`, Zod) — the app now refuses to start if `API_KEY` is missing, instead of silently booting into a state where the guard "fails closed" by accident.
+
+## Known limitations
+
+- **`authorId` isn't verified.** There's no session/auth concept in this starter — any caller holding the shared `x-api-key` can create a todo under any `authorId`, including one that doesn't belong to them (see the comment on `CreateTodoDto.authorId`). Fixing this needs real per-user authentication (sessions or JWTs) plus a `User` create/list surface, which doesn't exist yet either — deliberately out of scope for a starter template, not an oversight.
 
 ## Architecture
 
@@ -48,9 +63,9 @@ Frontend (apps/web)
 │                 ┌────▼─────┐                      │
 │                 │TodoService│                      │
 │                 └────┬─────┘                      │
-│  common/: ApiKeyGuard (REST mutations),           │
-│  LoggerMiddleware (REST only), TransformInterceptor│
-│  (wraps REST responses; tRPC responses untouched)  │
+│  ApiKeyGuard (REST mutations) / TrpcApiKeyMiddleware│
+│  (tRPC mutations), LoggerMiddleware (REST only),   │
+│  TransformInterceptor (wraps REST responses only)  │
 └──────────────────────┬──────────────────────────┘
                         ▼
               ┌───────────────────┐
