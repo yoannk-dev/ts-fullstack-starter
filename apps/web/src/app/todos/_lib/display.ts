@@ -21,15 +21,11 @@ export const STATUS_BADGE_CLASSES: Record<Status, string> = {
 export const PRIORITY_LABELS: Record<Priority, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 export const PRIORITY_RANK: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 export const PRIORITY_TEXT_CLASSES: Record<Priority, string> = {
-  LOW: "text-gray-400",
+  LOW: "text-gray-500",
   MEDIUM: "text-amber-600",
   HIGH: "text-red-600",
 };
 
-// Locale is pinned rather than left to the runtime default: the server
-// (Node, host locale) and the browser (its own locale) can disagree, and
-// since page.tsx now renders this on the server, a mismatch there is a
-// hydration error, not just a cosmetic inconsistency.
 const DATE_LOCALE = "en-US";
 
 export function formatDueDate(dueDate: Date | string | null) {
