@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { CreateTodoSchema, StatusSchema, TodoSchema, UpdateTodoSchema } from "@repo/types";
+import { TRPCError } from "@trpc/server";
 import { Input, Mutation, Query, Router } from "nestjs-trpc";
 import { z } from "zod";
 import { TodoService } from "../todo/todo.service.js";
@@ -9,6 +10,17 @@ const updateInput = z.object({ id: z.number().int(), data: UpdateTodoSchema });
 const findAllInput = z
   .object({ search: z.string().optional(), status: StatusSchema.optional() })
   .optional();
+
+async function rethrowAsTRPCError<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof NotFoundException) {
+      throw new TRPCError({ code: "NOT_FOUND", message: error.message });
+    }
+    throw error;
+  }
+}
 
 @Router({ alias: "todo" })
 @Injectable()
@@ -20,9 +32,9 @@ export class TodoRouter {
     return this.todoService.findAll(input);
   }
 
-  @Query({ input: idInput, output: TodoSchema.nullable() })
+  @Query({ input: idInput, output: TodoSchema })
   findById(@Input() input: z.infer<typeof idInput>) {
-    return this.todoService.findOne(input.id);
+    return rethrowAsTRPCError(() => this.todoService.findOne(input.id));
   }
 
   @Mutation({ input: CreateTodoSchema, output: TodoSchema })
@@ -32,11 +44,11 @@ export class TodoRouter {
 
   @Mutation({ input: updateInput, output: TodoSchema })
   update(@Input() input: z.infer<typeof updateInput>) {
-    return this.todoService.update(input.id, input.data);
+    return rethrowAsTRPCError(() => this.todoService.update(input.id, input.data));
   }
 
   @Mutation({ input: idInput, output: TodoSchema })
   delete(@Input() input: z.infer<typeof idInput>) {
-    return this.todoService.remove(input.id);
+    return rethrowAsTRPCError(() => this.todoService.remove(input.id));
   }
 }

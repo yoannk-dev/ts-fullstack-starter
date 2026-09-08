@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "type": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -17,18 +17,17 @@
     "@repo/types": "workspace:*",
     "@tanstack/react-query": "^5.100.8",
     "@trpc/client": "^11.16.0",
-    "@trpc/server": "^11.16.0",
     "@trpc/tanstack-react-query": "^11.16.0",
     "next": "^16.2.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.75.0",
-    "zod": "^3.24.2",
-    "zustand": "^5.0.3"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.4",
     "@testing-library/react": "^16.3.0",
+    "@trpc/server": "^11.16.0",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
