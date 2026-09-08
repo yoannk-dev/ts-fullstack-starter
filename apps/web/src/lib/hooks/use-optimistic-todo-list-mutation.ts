@@ -3,14 +3,15 @@
 import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@repo/api/router";
-import type { inferRouterOutputs } from "@trpc/server";
 import { useTRPC } from "@/lib/trpc/react";
+import {
+  applyOptimisticUpdate,
+  rollbackOptimisticUpdate,
+  type OptimisticContext,
+  type TodoListItem,
+} from "./optimistic-todo-list-cache";
 
-export type TodoListItem = inferRouterOutputs<AppRouter>["todo"]["findAll"][number];
-
-interface OptimisticContext {
-  previous: TodoListItem[] | undefined;
-}
+export type { TodoListItem };
 
 /**
  * Shared optimistic-update plumbing for mutations that affect the todo list
@@ -18,7 +19,9 @@ interface OptimisticContext {
  * roll back on error, and revalidate once the server responds. `updateList`
  * is the only thing that differs between call sites — it replaces the two
  * near-identical onMutate/onError/onSettled blocks that used to live in the
- * list page directly.
+ * list page directly. The actual cache read/write lives in
+ * optimistic-todo-list-cache.ts, kept separate so it's testable without a
+ * tRPC context.
  */
 export function useOptimisticTodoListMutation<TVariables extends { id: number }, TData>(
   baseOptions: UseMutationOptions<TData, TRPCClientErrorLike<AppRouter>, TVariables>,
@@ -26,20 +29,16 @@ export function useOptimisticTodoListMutation<TVariables extends { id: number },
 ) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const queryKey = trpc.todo.findAll.queryKey();
 
   return useMutation<TData, TRPCClientErrorLike<AppRouter>, TVariables, OptimisticContext>({
     ...baseOptions,
     onMutate: async (variables) => {
-      const queryKey = trpc.todo.findAll.queryKey();
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<TodoListItem[]>(queryKey);
-      queryClient.setQueryData<TodoListItem[]>(queryKey, (old) => updateList(old, variables));
-      return { previous };
+      return applyOptimisticUpdate(queryClient, queryKey, updateList, variables);
     },
     onError: (_error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(trpc.todo.findAll.queryKey(), context.previous);
-      }
+      rollbackOptimisticUpdate(queryClient, queryKey, context);
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries(trpc.todo.findAll.queryFilter());
