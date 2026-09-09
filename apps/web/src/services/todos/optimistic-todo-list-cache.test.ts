@@ -1,6 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { applyOptimisticUpdate, rollbackOptimisticUpdate, type TodoListItem } from "./optimistic-todo-list-cache";
+import {
+  applyOptimisticUpdate,
+  rollbackOptimisticUpdate,
+  type TodoListItem,
+} from "./optimistic-todo-list-cache";
 
 function makeTodo(overrides: Partial<TodoListItem>): TodoListItem {
   return {
@@ -28,7 +32,8 @@ describe("applyOptimisticUpdate / rollbackOptimisticUpdate", () => {
     const context = applyOptimisticUpdate(
       queryClient,
       queryKey,
-      (list, { id }: { id: number }) => list?.map((t) => (t.id === id ? { ...t, status: "DONE" } : t)),
+      (list, { id }: { id: number }) =>
+        list?.map((t) => (t.id === id ? { ...t, status: "DONE" } : t)),
       { id: 1 },
     );
 
@@ -44,9 +49,14 @@ describe("applyOptimisticUpdate / rollbackOptimisticUpdate", () => {
     const todos = [makeTodo({ id: 1 }), makeTodo({ id: 2 })];
     queryClient.setQueryData(queryKey, todos);
 
-    applyOptimisticUpdate(queryClient, queryKey, (list, { id }: { id: number }) => list?.filter((t) => t.id !== id), {
-      id: 1,
-    });
+    applyOptimisticUpdate(
+      queryClient,
+      queryKey,
+      (list, { id }: { id: number }) => list?.filter((t) => t.id !== id),
+      {
+        id: 1,
+      },
+    );
 
     expect(queryClient.getQueryData<TodoListItem[]>(queryKey)).toEqual([makeTodo({ id: 2 })]);
   });
@@ -64,9 +74,14 @@ describe("applyOptimisticUpdate / rollbackOptimisticUpdate", () => {
     const original = [makeTodo({ id: 1, status: "TODO" }), makeTodo({ id: 2, status: "DONE" })];
     queryClient.setQueryData(queryKey, original);
 
-    const context = applyOptimisticUpdate(queryClient, queryKey, (list) => list?.filter((t) => t.id !== 1), {
-      id: 1,
-    });
+    const context = applyOptimisticUpdate(
+      queryClient,
+      queryKey,
+      (list) => list?.filter((t) => t.id !== 1),
+      {
+        id: 1,
+      },
+    );
     // Simulate the mutation failing after the optimistic update was applied.
     rollbackOptimisticUpdate(queryClient, queryKey, context);
 

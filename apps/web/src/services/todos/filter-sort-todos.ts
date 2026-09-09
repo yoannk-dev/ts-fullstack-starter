@@ -1,6 +1,6 @@
 import type { Status } from "@repo/types";
-import type { TodoListItem } from "./hooks/use-optimistic-todo-list-mutation";
-import { PRIORITY_RANK } from "../app/todos/_lib/display";
+import type { TodoListItem } from "@/hooks/todos/use-optimistic-todo-list-mutation";
+import { PRIORITY_RANK } from "./todo-display";
 
 export type SortKey = "dueDate" | "priority";
 
@@ -10,7 +10,10 @@ export interface TodoListFilters {
   sortKey: SortKey;
 }
 
-export function filterAndSortTodos(todos: TodoListItem[], { search, statusFilter, sortKey }: TodoListFilters) {
+export const filterAndSortTodos = (
+  todos: TodoListItem[],
+  { search, statusFilter, sortKey }: TodoListFilters,
+) => {
   const filtered = todos.filter((todo) => {
     const matchesSearch = todo.title.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "ALL" || todo.status === statusFilter;
@@ -25,4 +28,4 @@ export function filterAndSortTodos(todos: TodoListItem[], { search, statusFilter
     if (!b.dueDate) return -1;
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
-}
+};

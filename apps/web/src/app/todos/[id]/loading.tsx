@@ -1,12 +1,10 @@
-import { TodoSkeleton } from "../../_components/todo-skeleton";
+import { TodoSkeleton } from "@/components/todo-skeleton";
 
-export default function Loading() {
-  return (
-    <main className="max-w-2xl mx-auto px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Todo details</h1>
-      </div>
-      <TodoSkeleton rows={4} rowHeight="h-12" />
-    </main>
-  );
-}
+const Loading = () => (
+  <>
+    <h1 className="text-3xl font-bold tracking-tight mb-8">Todo details</h1>
+    <TodoSkeleton rows={1} rowHeight="h-64" />
+  </>
+);
+
+export default Loading;

@@ -18,13 +18,13 @@ interface TodoFormProps {
   submitError?: boolean;
 }
 
-export function TodoForm({
+export const TodoForm = ({
   defaultValues,
   onSubmit,
   submitLabel,
   pendingLabel,
   submitError,
-}: TodoFormProps) {
+}: TodoFormProps) => {
   const {
     register,
     handleSubmit,
@@ -113,7 +113,9 @@ export function TodoForm({
         />
       </div>
 
-      {submitError && <p className="text-sm text-red-500">Something went wrong. Please try again.</p>}
+      {submitError && (
+        <p className="text-sm text-red-500">Something went wrong. Please try again.</p>
+      )}
 
       <button
         type="submit"
@@ -124,4 +126,4 @@ export function TodoForm({
       </button>
     </form>
   );
-}
+};
