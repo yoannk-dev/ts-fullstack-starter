@@ -3,33 +3,24 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/lib/trpc/react";
-import { useOptimisticTodoListMutation, type TodoListItem } from "@/lib/hooks/use-optimistic-todo-list-mutation";
-import { filterAndSortTodos, type SortKey } from "@/lib/filter-sort-todos";
+import { useTRPC } from "@/api/trpc/client";
+import { useOptimisticTodoListMutation } from "@/hooks/todos/use-optimistic-todo-list-mutation";
+import { filterAndSortTodos, type SortKey } from "@/services/todos/filter-sort-todos";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TodoSkeleton } from "@/components/todo-skeleton";
+import { todoRoutes } from "@/routing/paths";
 import type { Status } from "@repo/types";
-import { ConfirmDialog } from "./confirm-dialog";
 import { FilterBar } from "./filter-bar";
 import { TodoRow } from "./todo-row";
-import { TodoSkeleton } from "./todo-skeleton";
-import { NEXT_STATUS } from "../todos/_lib/display";
 
-export function TodoList() {
+export const TodoList = () => {
   const trpc = useTRPC();
   const { data: todos, isLoading, error } = useQuery(trpc.todo.findAll.queryOptions());
 
-  const toggleStatus = useOptimisticTodoListMutation(
-    trpc.todo.update.mutationOptions(),
-    (list, { id, data }) =>
-      list?.map((todo) => (todo.id === id && data.status ? { ...todo, status: data.status } : todo)),
+  const deleteTodo = useOptimisticTodoListMutation(
+    trpc.todo.delete.mutationOptions(),
+    (list, { id }) => list?.filter((todo) => todo.id !== id),
   );
-
-  const deleteTodo = useOptimisticTodoListMutation(trpc.todo.delete.mutationOptions(), (list, { id }) =>
-    list?.filter((todo) => todo.id !== id),
-  );
-
-  const cycleStatus = (todo: TodoListItem) => {
-    toggleStatus.mutate({ id: todo.id, data: { status: NEXT_STATUS[todo.status] } });
-  };
 
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const pendingDeleteTodo = todos?.find((todo) => todo.id === pendingDeleteId);
@@ -54,10 +45,10 @@ export function TodoList() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Todos</h1>
         <Link
-          href="/todos/new"
+          href={todoRoutes.new}
           className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
         >
-          + New todo
+          + New
         </Link>
       </div>
 
@@ -81,7 +72,11 @@ export function TodoList() {
       ) : (
         <ul className="space-y-3">
           {visibleTodos.map((todo) => (
-            <TodoRow key={todo.id} todo={todo} onCycleStatus={cycleStatus} onRequestDelete={setPendingDeleteId} />
+            <TodoRow
+              key={`todo-${String(todo.id)}`}
+              todo={todo}
+              onRequestDelete={setPendingDeleteId}
+            />
           ))}
         </ul>
       )}
@@ -102,4 +97,4 @@ export function TodoList() {
       />
     </main>
   );
-}
+};

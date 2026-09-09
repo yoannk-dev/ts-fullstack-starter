@@ -1,13 +1,10 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { getServerQueryClient, serverTrpc } from "@/lib/trpc/server";
-import { TodoList } from "./_components/todo-list";
+import { getServerQueryClient, serverTrpc } from "@/api/trpc/server";
+import { TodoList } from "@/components/todos/todo-list";
 
-// Todos change on every mutation — without this, Next.js would statically
-// prerender this page once at build time and serve that stale snapshot to
-// every visitor instead of fetching current data per request.
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+const Home = async () => {
   const queryClient = getServerQueryClient();
   await queryClient.prefetchQuery(serverTrpc.todo.findAll.queryOptions());
 
@@ -16,4 +13,6 @@ export default async function Home() {
       <TodoList />
     </HydrationBoundary>
   );
-}
+};
+
+export default Home;

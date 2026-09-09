@@ -27,9 +27,6 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     createTRPCClient<AppRouter>({
       links: [
         httpBatchLink({
-          // Same-origin: proxied server-side by app/api/trpc/[...trpc]/route.ts,
-          // which attaches the API key. Never call the API directly from here —
-          // that would require shipping the key to the browser.
           url: "/api/trpc",
         }),
       ],

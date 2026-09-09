@@ -58,7 +58,14 @@ describe("TodoForm", () => {
   });
 
   it("shows the submit error message when submitError is true", () => {
-    render(<TodoForm onSubmit={vi.fn()} submitLabel="Create todo" pendingLabel="Creating…" submitError />);
+    render(
+      <TodoForm
+        onSubmit={vi.fn()}
+        submitLabel="Create todo"
+        pendingLabel="Creating…"
+        submitError
+      />,
+    );
 
     expect(screen.getByText("Something went wrong. Please try again.")).toBeInTheDocument();
   });

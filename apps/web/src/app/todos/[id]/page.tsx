@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { getServerQueryClient, serverTrpc } from "@/lib/trpc/server";
-import { BackButton } from "../_components/back-button";
-import { TodoDetail } from "./_components/todo-detail";
+import { getServerQueryClient, serverTrpc } from "@/api/trpc/server";
+import { TodoDetail } from "@/components/todos/todo-detail";
 
 type PageProps = { params: Promise<{ id: string }> };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export const generateMetadata = async ({ params }: PageProps): Promise<Metadata> => {
   const { id } = await params;
   try {
     const todo = await getServerQueryClient().fetchQuery(
@@ -16,9 +15,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   } catch {
     return { title: "Todo not found — Todos" };
   }
-}
+};
 
-export default async function TodoDetailPage({ params }: PageProps) {
+const TodoDetailPage = async ({ params }: PageProps) => {
   const { id } = await params;
   const todoId = Number(id);
 
@@ -26,15 +25,13 @@ export default async function TodoDetailPage({ params }: PageProps) {
   await queryClient.prefetchQuery(serverTrpc.todo.findById.queryOptions({ id: todoId }));
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-12">
-      <div className="mb-8">
-        <BackButton />
-        <h1 className="text-3xl font-bold tracking-tight">Todo details</h1>
-      </div>
-
+    <>
+      <h1 className="text-3xl font-bold tracking-tight mb-8">Todo details</h1>
       <HydrationBoundary state={dehydrate(queryClient)}>
         <TodoDetail todoId={todoId} />
       </HydrationBoundary>
-    </main>
+    </>
   );
-}
+};
+
+export default TodoDetailPage;

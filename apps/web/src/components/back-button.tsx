@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-export function BackButton() {
+export const BackButton = () => {
   const router = useRouter();
 
   return (
@@ -11,9 +11,9 @@ export function BackButton() {
       onClick={() => {
         router.back();
       }}
-      className="text-sm text-gray-600 hover:text-gray-800 transition-colors mb-4 flex items-center gap-1"
+      className="text-sm text-gray-600 hover:text-gray-800 transition-colors mb-4 flex items-center gap-1 cursor-pointer"
     >
-      ← Back
+      ← Back to previous page
     </button>
   );
-}
+};

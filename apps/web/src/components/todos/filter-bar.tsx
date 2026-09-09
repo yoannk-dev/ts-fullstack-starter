@@ -1,7 +1,7 @@
 import type { Status } from "@repo/types";
-import type { SortKey } from "@/lib/filter-sort-todos";
+import type { SortKey } from "@/services/todos/filter-sort-todos";
 
-export function FilterBar({
+export const FilterBar = ({
   search,
   onSearchChange,
   statusFilter,
@@ -15,7 +15,7 @@ export function FilterBar({
   onStatusFilterChange: (value: Status | "ALL") => void;
   sortKey: SortKey;
   onSortKeyChange: (value: SortKey) => void;
-}) {
+}) => {
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-6">
       <label className="flex-1">
@@ -62,4 +62,4 @@ export function FilterBar({
       </label>
     </div>
   );
-}
+};

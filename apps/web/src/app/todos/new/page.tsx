@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/lib/trpc/react";
-import { BackButton } from "../_components/back-button";
-import { TodoForm, type TodoFormValues } from "../_components/todo-form";
+import { useTRPC } from "@/api/trpc/client";
+import { BackButton } from "@/components/back-button";
+import { TodoForm, type TodoFormValues } from "@/components/todos/todo-form";
+import { todoRoutes } from "@/routing/paths";
 
-export default function NewTodoPage() {
+const NewTodoPage = () => {
   const router = useRouter();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -19,8 +20,9 @@ export default function NewTodoPage() {
       dueDate: values.dueDate ? new Date(values.dueDate) : undefined,
       authorId: 1,
     });
+
     await queryClient.invalidateQueries(trpc.todo.findAll.queryFilter());
-    router.push("/");
+    router.push(todoRoutes.list);
   };
 
   return (
@@ -38,4 +40,6 @@ export default function NewTodoPage() {
       />
     </main>
   );
-}
+};
+
+export default NewTodoPage;

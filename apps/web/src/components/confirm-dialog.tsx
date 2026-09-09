@@ -6,21 +6,21 @@ interface ConfirmDialogProps {
   open: boolean;
   title: string;
   description: string;
-  confirmLabel: string;
   cancelLabel?: string;
+  confirmLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmDialog({
+export const ConfirmDialog = ({
   open,
   title,
   description,
-  confirmLabel,
   cancelLabel = "Cancel",
+  confirmLabel,
   onConfirm,
   onCancel,
-}: ConfirmDialogProps) {
+}: ConfirmDialogProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -78,4 +78,4 @@ export function ConfirmDialog({
       </div>
     </dialog>
   );
-}
+};
