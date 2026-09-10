@@ -39,13 +39,3 @@ A pre-commit hook (husky + lint-staged) runs eslint/prettier on staged files; CI
 | `apps/api`       | NestJS backend — REST + tRPC on the same server, Prisma/SQLite    | [`apps/api/README.md`](apps/api/README.md), [`apps/api/prisma/README.md`](apps/api/prisma/README.md) |
 | `apps/web`       | Next.js 16 (App Router) frontend                                  | [`apps/web/README.md`](apps/web/README.md)                                                           |
 | `packages/types` | Shared Zod schemas, consumed by both apps as the validation layer | —                                                                                                    |
-
-For the deeper "why" behind non-obvious architectural choices (why REST _and_ tRPC, why `apps/api` doesn't run through the standard NestJS build pipeline, how the tRPC router types reach the frontend, the testing setup, etc.), see [`CLAUDE.md`](CLAUDE.md) — written for AI coding agents, but equally useful as a technical reference for a human picking up this repo.
-
-## Known limitations & deliberate trade-offs
-
-This is a starter template, not a production app — a few things are intentionally out of scope rather than overlooked:
-
-- **No real authentication.** There's no session/user-login concept. `authorId` on a todo is trusted at face value from the request body — anything holding the shared `x-api-key` can act as any user. A single shared API key gates mutations on both REST and tRPC instead. See [`apps/api/README.md#known-limitations`](apps/api/README.md#known-limitations).
-- **tRPC has no rate limiting of its own.** The global `@nestjs/throttler` guard only covers REST, because `nestjs-trpc` mounts its own Express handler that bypasses Nest's normal request pipeline. Documented in [`apps/api/README.md#security`](apps/api/README.md#security).
-- **Pagination exists on the API but isn't wired into the UI.** `findAll` supports `take`/`skip`, but `apps/web` still fetches one window and filters/sorts client-side — see [`apps/api/README.md`](apps/api/README.md).
