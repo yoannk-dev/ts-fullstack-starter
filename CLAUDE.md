@@ -1,94 +1,82 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repo.
 
 ## Commands
 
-All commands run from the repo root via Turborepo unless a package is specified with `--filter`.
+Run from the repo root via Turborepo unless `--filter` targets a package.
 
 ```bash
 pnpm install                          # install all workspace deps
-pnpm dev                              # run all apps in dev/watch mode (turbo run dev, persistent)
-pnpm build                            # build all packages (respects dependency graph: api before web)
-pnpm lint                             # eslint across all packages
-pnpm type                             # tsc --noEmit across all packages
-pnpm test                             # vitest run across all packages
+pnpm dev                              # run all apps in watch mode
+pnpm build                            # build all packages (api before web)
+pnpm lint / pnpm type / pnpm test     # across all packages
 
-pnpm --filter @repo/api dev           # API only, on :3001, watch mode
-pnpm --filter @repo/web dev           # web only, on :3000
-pnpm --filter @repo/api exec vitest run path/to/file.test.ts    # single test file (api)
-pnpm --filter @repo/web exec vitest run path/to/file.test.tsx   # single test file (web)
-pnpm --filter @repo/api exec prisma generate  # regenerate prisma/generated (needed on a fresh clone before anything else works — see prisma/README.md)
-pnpm --filter @repo/api db:migrate    # prisma migrate dev — does NOT auto-seed, run db:seed after
-pnpm --filter @repo/api db:seed       # prisma db seed — populates a default user + sample todos
-pnpm --filter @repo/api db:studio     # prisma studio
-pnpm --filter @repo/api trpc:generate # regenerate the tRPC AppRouter type (see below)
+pnpm --filter @repo/api dev           # API only, :3001
+pnpm --filter @repo/web dev           # web only, :3000
+pnpm --filter @repo/api exec vitest run path/to/file.test.ts
+pnpm --filter @repo/api exec prisma generate  # needed on a fresh clone, see prisma/README.md
+pnpm --filter @repo/api db:migrate    # prisma migrate dev — does NOT auto-seed
+pnpm --filter @repo/api db:seed       # populates a default user + sample todos
+pnpm --filter @repo/api trpc:generate # regenerate the tRPC AppRouter type
 ```
 
-`turbo.json` wires `build`/`lint`/`type`/`test` to `dependsOn: ["^build"]`, so `apps/api#build` always runs before `apps/web#build` — this matters because `apps/web` needs `apps/api`'s generated tRPC router types to exist first (see below). `apps/api#build`'s `outputs` deliberately includes `src/router/generated/**` (not just `dist/**`) so a turbo cache hit still restores that file — without it, a cache hit on `apps/api#build` would silently skip regenerating the router types `apps/web` depends on, only ever surfacing once remote caching is added (invisible today since CI never has a pre-existing local cache).
-
-CI (`.github/workflows/ci.yml`) runs install → `prisma generate` → lint → type → test → build on push to `main` and on every PR. A pre-commit hook (husky, `.husky/pre-commit`) runs `lint-staged` (`eslint --fix` + `prettier --write` on staged files) locally.
+CI runs install → prisma generate → lint → type → test → build. A pre-commit hook (husky + lint-staged) runs eslint/prettier on staged files.
 
 ## Architecture
 
-Monorepo: pnpm workspaces (`apps/*`, `packages/*`) + Turborepo. Packages use the `@repo/*` scope with `workspace:*` versions.
+Monorepo: pnpm workspaces (`apps/*`, `packages/*`) + Turborepo, `@repo/*` scope.
 
-- `apps/api` — NestJS backend, dual REST + tRPC API, Prisma/SQLite.
-- `apps/web` — Next.js 16 (App Router) frontend, consumes the API exclusively via a tRPC client.
-- `packages/types` — shared Zod schemas (`Todo`, `User`, `CreateTodoSchema`, `UpdateTodoSchema`, `StatusSchema`, `PrioritySchema`, etc.), consumed by both apps and reused as tRPC input/output validators. **Ships as raw `.ts` source with no build step** — its `package.json` `exports` point directly at `./src/index.ts`. This is why `apps/api` cannot use a plain `tsc`-compile-then-`node` execution model (see "How apps/api actually runs" below).
+- `apps/api` — NestJS, dual REST + tRPC, Prisma/SQLite.
+- `apps/web` — Next.js 16 (App Router), talks to the API only via tRPC.
+- `packages/types` — shared Zod schemas, used as tRPC validators. **No build step** — `exports` points at raw `.ts`, so `apps/api` can't run through a normal `tsc`+`node` pipeline (see below).
 
-### `apps/api`: NestJS hosting both REST and tRPC on the same server
+### apps/api: REST + tRPC on one server
 
-The API is not a REST-only or tRPC-only service — it's both, on the same Express instance under NestJS:
+- `TodoController` (REST) and `TodoRouter` (tRPC, `nestjs-trpc`) both delegate to `TodoService` — query logic lives in one place.
+- Both transports are guarded by `x-api-key` on mutations (`ApiKeyGuard` for REST, `TrpcApiKeyMiddleware` for tRPC). Queries are open.
+- `nestjs-trpc` mounts its own Express handler that bypasses Nest's middleware layer — so the global `LoggerMiddleware` and the `@nestjs/throttler` rate limit only cover REST, not tRPC.
+- `apps/web` is client-rendered and can't hold the API key itself, so it proxies tRPC calls through `app/api/trpc/[...trpc]/route.ts`, which attaches `x-api-key` server-side.
+- Error normalization is separate per transport: `AllExceptionsFilter` (REST) vs `callTodoProcedure` (`src/trpc/trpc-error.util.ts`, wraps every tRPC procedure). Both map known Prisma error codes to sane responses instead of leaking raw messages.
+- `TodoService.findAll` is paginated (`take`/`skip`, default 50, max 100). `apps/web` doesn't page through this yet — it fetches the default window and filters/sorts client-side.
 
-- **REST** (`src/todo/todo.controller.ts`) — conventional Nest controllers/DTOs (`class-validator`), documented via `@nestjs/swagger` at `/api/docs`.
-- **tRPC** (`src/trpc/todo.router.ts`) — via `nestjs-trpc`, using `@Router()`/`@Query()`/`@Mutation()`/`@Input()` decorators. Router classes are ordinary Nest providers (constructor-injectable), registered in `todo.module.ts`.
-- Both the REST controller and the tRPC router **delegate to the same `TodoService`** — Prisma query logic lives in exactly one place.
-- `src/common/` holds cross-cutting REST concerns: `ApiKeyGuard` (checked via `x-api-key`, applied to REST mutations), `LoggerMiddleware` (global, but only actually logs REST traffic — `nestjs-trpc` mounts its own Express handler that bypasses Nest's middleware layer, which is also why the global `@nestjs/throttler` rate limit only covers REST), `TransformInterceptor` (wraps REST responses as `{success, data, timestamp}`; does **not** affect tRPC responses, which keep the raw tRPC wire shape `{"result":{"data":...}}` that `apps/web`'s `httpBatchLink` expects), and `AllExceptionsFilter` (global, maps known Prisma error codes to a proper status + sanitized message instead of a raw leaked message). tRPC mutations are guarded too, via an equivalent `nestjs-trpc` middleware (`src/trpc/api-key.middleware.ts`, applied per-procedure with `@UseMiddlewares`) — since `apps/web` is entirely client-rendered, it can't hold that key itself without exposing it in the browser, so it proxies every tRPC call through its own `app/api/trpc/[...trpc]/route.ts`, which attaches `x-api-key` server-side. tRPC error normalization is separate (`src/trpc/trpc-error.util.ts`'s `callTodoProcedure`, wrapping every procedure) since `AllExceptionsFilter` only catches REST — see `apps/api/README.md#error-handling` for the full breakdown of both.
-- `TodoService.findAll` is paginated (`take`/`skip`, default 50, max 100) with matching Prisma indexes on `authorId`/`status`. `apps/web` doesn't page through this yet — it fetches the default window and still filters/sorts client-side.
+### AppRouter type contract with apps/web
 
-### The `AppRouter` type contract with `apps/web`
+`apps/web` imports `AppRouter` via `@repo/api/router` → `src/router/index.ts`, which re-exports the gitignored `src/router/generated/server.ts`. That file is produced by the `nestjs-trpc generate` CLI, regenerated on every `build`, and only carries types (no procedure bodies — the real router is built via reflection at Nest bootstrap).
 
-`apps/web` imports `import type { AppRouter } from "@repo/api/router"`, resolved via `apps/api/package.json`'s `"./router"` subpath export to `src/router/index.ts`. That file is hand-written and committed:
+The generator statically parses `TRPCModule.forRoot(...)` and only works if it's inlined directly in `AppModule`'s `imports` (not re-exported from a sub-module). New routers need an explicit `@Router({ alias: "..." })` — without it the key defaults to the class name (`TodoRouter` → `todoRouter` instead of `todo`), silently breaking `apps/web`'s `trpc.todo.*` calls.
 
-```ts
-export type { AppRouter } from "./generated/server.js";
-```
+### How apps/api runs
 
-`src/router/generated/server.ts` is produced by the `nestjs-trpc generate` CLI (a separate Rust binary, not part of `TRPCModuleOptions`) — it's gitignored and regenerated on every `build`. It statically parses `TRPCModule.forRoot(...)`, which must be reachable directly from `app.module.ts` (inlined in `AppModule`'s `imports`, not wrapped in a sub-module — the generator's static analysis doesn't traverse into imported modules). The generated file only carries _types_; procedure bodies are placeholders. The real runtime router is built via live reflection over the `@Router()`-decorated classes at Nest bootstrap.
+`dev`/`start` run `node --import @swc-node/register/esm-register src/main.ts`, not `nest start`/`nest build`. Two reasons:
 
-If you add a new tRPC router, give it an explicit `@Router({ alias: "..." })` — without it, the top-level procedure-tree key defaults to the class name (e.g. `TodoRouter` → `todoRouter`, not `todo`), which would silently break `apps/web`'s `trpc.todo.*` calls.
+1. `packages/types` ships raw `.ts` with no build step — plain `node` can't resolve it; `@swc-node/register` transpiles on demand, workspace packages included.
+2. `tsx`/esbuild don't reliably emit `emitDecoratorMetadata`, which breaks Nest's DI silently (services injected as `undefined`, no crash). SWC handles this correctly.
 
-### How `apps/api` actually runs (not the standard Nest CLI pipeline)
+`apps/api/tsconfig.json` keeps `moduleResolution: "Bundler"` (not `NodeNext`) because `packages/types`'s relative imports lack `.js` extensions.
 
-`dev`/`start` run `node --import @swc-node/register/esm-register src/main.ts` directly — **not** `nest start`/`nest build` + `node dist/main.js`. Two reasons, both load-bearing:
-
-1. `packages/types` has no build step (see above), so plain `node` can never resolve its raw `.ts` source at runtime. `@swc-node/register` is a loader hook that transpiles any `.ts` file it encounters on demand, including linked workspace packages — this is required, not a style choice.
-2. `tsx`/esbuild do not reliably emit `emitDecoratorMetadata` for constructor parameters, which breaks NestJS's DI **silently** (services get injected as `undefined`, no crash at boot). SWC has correct support for this, which is why `@swc-node/register` is used instead of `tsx`.
-
-`apps/api/tsconfig.json` deliberately keeps `module: "ESNext"` / `moduleResolution: "Bundler"` (not `NodeNext`) — `packages/types`'s internal relative imports lack `.js` extensions, which `NodeNext` resolution rejects.
-
-`nest build` (chained with `nestjs-trpc generate` in the `build` script) still runs, but only as a type-check + router-codegen gate for `apps/web`'s build — its `dist/` output is never executed.
+`nest build` still runs as part of `build`, but only as a type-check + router-codegen gate — its `dist/` is never executed.
 
 ### Prisma
 
-`prisma/schema.prisma` (SQLite) uses the `prisma-client` generator with typed output to `apps/api/prisma/generated` (raw TS, gitignored, regenerated by `prisma generate`) — colocated under `prisma/` rather than at the app root, mirroring how `nestjs-trpc`'s codegen lives under `src/router/generated/` next to the router it concerns. `PrismaService` (`src/prisma/prisma.service.ts`) extends `PrismaClient` using the `@prisma/adapter-better-sqlite3` driver adapter, resolving `dev.db`'s path relative to `import.meta.dirname`. `prisma.config.ts` (not `schema.prisma`'s `datasource.url`) is the source of truth for the DB file path used by the Prisma CLI.
+`prisma/schema.prisma` (SQLite) generates a typed client to `apps/api/prisma/generated` (gitignored). `PrismaService` extends `PrismaClient` via the `@prisma/adapter-better-sqlite3` driver adapter. `prisma.config.ts`, not `schema.prisma`'s `datasource.url`, is the source of truth for the DB path used by the CLI.
 
-No field uses Prisma's `@map(...)` (only the table-level `@@map`, e.g. `Todo` → `todos`) — this is deliberate, not an oversight: verified via query logging that the installed `prisma-client` generator (Prisma 7.8.0) silently ignores field-level `@map` when building queries against the `better-sqlite3` adapter, while `prisma migrate dev`'s diff engine _does_ honor it — combining the two would make `migrate dev` think columns need renaming that the runtime client would never actually query correctly. See `apps/api/prisma/README.md` for the full writeup.
+No field uses `@map(...)` (only table-level `@@map`) — the installed `prisma-client` generator (7.8.0) silently ignores field-level `@map` against the `better-sqlite3` adapter, while `migrate dev`'s diff engine still honors it, so combining the two would desync migrations from what the client actually queries. See `apps/api/prisma/README.md`.
 
-### `apps/web`: Server Components for reads, a same-origin proxy for writes
+`better-sqlite3` needs its native binding built — it must stay listed in the root `package.json`'s `pnpm.onlyBuiltDependencies`, or a fresh `pnpm install` leaves the API unable to boot.
 
-Two distinct ways this app talks to `apps/api`, chosen per route based on whether the code runs on the server or in the browser:
+### apps/web: Server Components for reads, a proxy for writes
 
-- **Server Components** (`page.tsx` the todo list, and `todos/[id]/page.tsx` the detail page) call `apps/api` directly over HTTP via `src/lib/trpc/server.ts` — a vanilla tRPC client wrapped in `createTRPCOptionsProxy`, guarded by `import "server-only"` so it can't accidentally end up in a client bundle. It attaches `x-api-key` from the server-only `API_KEY` env var. Each page creates a per-request `QueryClient`, `prefetchQuery`s into it, and passes `dehydrate(queryClient)` to `<HydrationBoundary>` wrapping a Client Component (`TodoList` / `TodoDetail`) — the client-side `useQuery(trpc.todo.*.queryOptions())` in that component picks up the exact same cache entry on hydration, because `createTRPCOptionsProxy` and the `useTRPC()` hook generate identical query keys from the same procedure path + input, regardless of which client instance produced them. `todos/[id]/page.tsx` also uses this to implement `generateMetadata` (page title = todo title), which a `"use client"` page cannot export. Both list and detail pages are marked `export const dynamic = "force-dynamic"` — without it Next.js would statically prerender them once at build time and serve that frozen snapshot to every visitor, since neither reads request-time input like cookies/searchParams that would otherwise signal "don't cache this."
-- **Client Components** (all mutations, plus the fully client-rendered new/edit forms) go through `app/api/trpc/[...trpc]/route.ts`, a same-origin proxy that forwards every tRPC call to `apps/api` and attaches `x-api-key` server-side — the browser never sees the key. See `apps/web/README.md` for the full request-flow diagram and why this split exists.
+Structured by feature: `src/app` (routes), `src/components`, `src/hooks`, `src/services`, `src/api/trpc`, `src/routing`.
 
-Shared logic is deliberately pulled out of components so it can be unit-tested without rendering anything: `src/lib/filter-sort-todos.ts` (list search/filter/sort, a pure function) and `src/lib/hooks/optimistic-todo-list-cache.ts` (the optimistic-update snapshot/apply/rollback used by `useOptimisticTodoListMutation`, tested against a plain `QueryClient` with no tRPC involved).
+- **Server Components** (`src/app/page.tsx`, `src/app/todos/[id]/page.tsx`) call `apps/api` directly via `src/api/trpc/server.ts` (`import "server-only"`), attaching `x-api-key` from the server-only `API_KEY` env var. Each page prefetches into a `QueryClient` and hydrates a Client Component with it — same query keys, so the client picks up the cache on load. Both pages are `export const dynamic = "force-dynamic"` to avoid a frozen build-time snapshot.
+- **Client Components** (mutations, new/edit forms) go through `src/app/api/trpc/[...trpc]/route.ts`, which delegates to `src/api/trpc/proxy.ts` to forward requests to `apps/api` and attach `x-api-key` server-side so the browser never sees it.
+- Pure logic lives outside components for unit testing: `src/services/todos/filter-sort-todos.ts` (list filter/sort), `src/services/todos/optimistic-todo-list-cache.ts` (optimistic update snapshot/apply/rollback, consumed by the `src/hooks/todos/use-optimistic-todo-list-mutation.ts` hook).
 
 ### Testing
 
-All three packages use Vitest (`pnpm test` / per-package `vitest.config.ts`):
+Vitest everywhere (`pnpm test`).
 
-- `packages/types` — plain Node environment; Zod schema validation tests.
-- `apps/api` — plain Node environment (`vitest.config.ts`). Tests instantiate classes directly (`new TodoService(fakePrisma)`) rather than going through `Test.createTestingModule()` — this sidesteps NestJS DI/decorator-metadata concerns entirely (see "How `apps/api` actually runs" above) since no reflection-based injection happens. Prisma errors in tests are real `Prisma.PrismaClientKnownRequestError` instances (`new Prisma.PrismaClientKnownRequestError(message, { code, clientVersion })`), not duck-typed fakes.
-- `apps/web` — `happy-dom` environment, `@testing-library/react` + `@testing-library/jest-dom` + `@testing-library/user-event` for component tests (`vitest.setup.ts` explicitly calls `afterEach(cleanup)` since `test.globals` is off). `apps/web/tsconfig.json` includes `vitest.config.ts`/`vitest.setup.ts` so `tsc` (not just Vitest) picks up jest-dom's type augmentations.
+- `packages/types` — plain Node, Zod schema tests.
+- `apps/api` — plain Node. Tests instantiate classes directly (`new TodoService(fakePrisma)`), skipping `Test.createTestingModule()` and Nest DI entirely. Prisma errors use real `Prisma.PrismaClientKnownRequestError` instances, not fakes.
+- `apps/web` — `happy-dom` + Testing Library (`vitest.setup.ts` calls `afterEach(cleanup)` since `test.globals` is off).
