@@ -19,7 +19,7 @@ pnpm --filter @repo/web dev           # web only, on :3000
 pnpm --filter @repo/api exec vitest run path/to/file.test.ts    # single test file (api)
 pnpm --filter @repo/web exec vitest run path/to/file.test.tsx   # single test file (web)
 pnpm --filter @repo/api exec prisma generate  # regenerate prisma/generated (needed on a fresh clone before anything else works — see prisma/README.md)
-pnpm --filter @repo/api db:migrate    # prisma migrate dev (also runs db:seed automatically)
+pnpm --filter @repo/api db:migrate    # prisma migrate dev — does NOT auto-seed, run db:seed after
 pnpm --filter @repo/api db:seed       # prisma db seed — populates a default user + sample todos
 pnpm --filter @repo/api db:studio     # prisma studio
 pnpm --filter @repo/api trpc:generate # regenerate the tRPC AppRouter type (see below)

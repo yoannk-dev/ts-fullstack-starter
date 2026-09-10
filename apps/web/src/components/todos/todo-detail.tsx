@@ -95,7 +95,7 @@ export const TodoDetail = ({ todoId }: { todoId: number }) => {
                   setConfirmOpen(true);
                 }}
                 aria-label={`Delete "${todo.title}"`}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
               >
                 Delete
               </button>

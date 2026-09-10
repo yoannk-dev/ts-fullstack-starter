@@ -53,7 +53,7 @@ export const TodoRow = ({
               onRequestDelete(todo.id);
             }}
             aria-label={`Delete "${todo.title}"`}
-            className="text-xs font-medium text-gray-600 hover:text-red-600 transition-colors"
+            className="text-xs font-medium text-gray-600 hover:text-red-600 transition-colors cursor-pointer"
           >
             Delete
           </button>

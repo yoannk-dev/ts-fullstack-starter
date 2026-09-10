@@ -14,7 +14,8 @@ A todo-list app demonstrating a dual REST + tRPC API (`apps/api`) consumed by a 
 ```bash
 pnpm install                                  # install all workspace deps
 pnpm --filter @repo/api exec prisma generate  # generate the Prisma client (needed before anything else works)
-pnpm --filter @repo/api db:migrate            # apply migrations to a local SQLite db + seed sample data
+pnpm --filter @repo/api db:migrate            # apply migrations to a local SQLite db
+pnpm --filter @repo/api db:seed               # optional: populate with sample todos
 pnpm dev                                      # run apps/api (:3001) and apps/web (:3000) together
 ```
 

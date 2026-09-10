@@ -120,7 +120,7 @@ export const TodoForm = ({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
       >
         {isSubmitting ? pendingLabel : submitLabel}
       </button>
